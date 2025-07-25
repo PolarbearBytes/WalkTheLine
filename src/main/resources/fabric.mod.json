@@ -1,0 +1,45 @@
+{
+	"schemaVersion": 1,
+	"id": "walk-the-line",
+	"version": "${version}",
+	"name": "Walk The Line",
+	"description": "I Walk The Line! Can you beat minecraft when limited to traveling only in a single line?",
+	"authors": [
+		"PolarbearBytes"
+	],
+	"contact": {
+		"homepage": "https://github.com/PolarbearBytes/WalkTheLine",
+		"sources": "https://github.com/PolarbearBytes/WalkTheLine"
+	},
+	"license": "CC0-1.0",
+	"icon": "assets/walk-the-line/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"games.polarbearbytes.walktheline.WalkTheLine"
+		],
+		"client": [
+			"games.polarbearbytes.walktheline.WalkTheLineClient"
+		],
+		"fabric-datagen": [
+			"games.polarbearbytes.walktheline.WalkTheLineDataGenerator"
+		]
+	},
+	"mixins": [
+		"walk-the-line.mixins.json",
+		{
+			"config": "walk-the-line.client.mixins.json",
+			"environment": "client"
+		}
+	],
+	"depends": {
+		"fabricloader": ">=0.16.14",
+		"minecraft": "~1.21.7",
+		"java": ">=21",
+		"fabric-api": "*",
+		"fabric-rendering-v1": "*"
+	},
+	"suggests": {
+		"another-mod": "*"
+	}
+}
