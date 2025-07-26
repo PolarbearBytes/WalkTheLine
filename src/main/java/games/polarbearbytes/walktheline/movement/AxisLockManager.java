@@ -215,13 +215,18 @@ public class AxisLockManager {
                 if(locationPair == null || locationPair.getFirst() == null) return null;
                 BlockPos pos = locationPair.getFirst();
 
-                //The actual axis we want to lock to is opposite from which way the portal room is facing
+
                 axis = locationPair.getSecond().getAxis();
-                if(axis == Axis.X) {
+                /*
+                Flip the axis so that we will be along the path that goes through
+                the silverfish spawner and portalframe
+                 */
+                if (axis == Axis.X) {
                     axis = Axis.Z;
                 } else {
                     axis = Axis.X;
                 }
+
                 coordinate = pos.getComponentAlongAxis(axis) + 0.5d;
             }
             case "the_nether" -> {

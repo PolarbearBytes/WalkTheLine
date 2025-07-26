@@ -26,8 +26,10 @@ import java.util.OptionalInt;
 /**
  * Class to control the rendering pipeline
  * Stolen parts from the MaLiLib library
+ * @see <a href="https://github.com/sakura-ryoko/malilib/blob/1.21.7-0.25.2/src/main/java/fi/dy/masa/malilib/render/RenderContext.java">github.com/sakura-ryoko/malilib</a>
  *
- * @author MaLiLib 1.21.5+
+ * @author Sakura-Ryoko MaLiLib 1.21.5+
+ * @author PolarbearBytes - Stripped down to only need for drawing lines
  */
 public class RenderContext implements AutoCloseable {
     public int indexCount;

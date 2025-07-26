@@ -11,7 +11,7 @@
 		"homepage": "https://github.com/PolarbearBytes/WalkTheLine",
 		"sources": "https://github.com/PolarbearBytes/WalkTheLine"
 	},
-	"license": "CC0-1.0",
+	"license": "MIT",
 	"icon": "assets/walk-the-line/icon.png",
 	"environment": "*",
 	"entrypoints": {
@@ -36,8 +36,7 @@
 		"fabricloader": ">=0.16.14",
 		"minecraft": "~1.21.7",
 		"java": ">=21",
-		"fabric-api": "*",
-		"fabric-rendering-v1": "*"
+		"fabric-api": "*"
 	},
 	"suggests": {
 		"another-mod": "*"

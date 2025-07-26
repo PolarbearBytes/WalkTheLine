@@ -76,7 +76,10 @@ public class AxisLineRenderer {
     }
 
     private AxisLineRenderer(){
+        WalkTheLine.LOGGER.warn("AxisLineRenderer remade:");
         this.mc = MinecraftClient.getInstance();
+
+        //TODO: Make into config settings at some point
         this.line = new RainbowLine(16,256);
     }
 
@@ -92,20 +95,22 @@ public class AxisLineRenderer {
     /**
      * Updates the various fields and calls the line updater
      */
-    public void update(){
-        if(mc.player == null) return;
+    public void update() {
+        if (mc.player == null) return;
 
         LockedAxisData lockedAxisData = WalkTheLineClient.getLockedAxis(mc.player.getWorld().getRegistryKey());
-        if(lockedAxisData == null) return;
+        if (lockedAxisData == null) return;
 
-        axisDirection = lockedAxisData.axis() == Axis.X ? Axis.Z.getDirections()[0] : Axis.X.getDirections()[0];
+        //Need the opposite axis direction in order do the matrix rotation correctly
+        axisDirection = lockedAxisData.axis() == Axis.X ? Axis.Z.getDirections()[1] : Axis.X.getDirections()[0];
+
         BlockPos pos = mc.player.getBlockPos();
         Vec3d cameraPos = mc.gameRenderer.getCamera().getCameraPos();
 
         //Clamp the coordinates to align with the locked axis
         switch(lockedAxisData.axis()){
-            case X-> pos = new BlockPos((int) Math.round(lockedAxisData.coordinate()+1.0f),pos.getY(),pos.getZ());
-            case Z-> pos = new BlockPos(pos.getX(),pos.getY(),(int) Math.round(lockedAxisData.coordinate()-1));
+            case X-> pos = new BlockPos((int) Math.round(lockedAxisData.coordinate())-1,pos.getY(),pos.getZ());
+            case Z-> pos = new BlockPos(pos.getX(),pos.getY(),(int) Math.round(lockedAxisData.coordinate())-1);
         }
 
         //Adjust the coordinates to be the center of the block coordinates
@@ -114,8 +119,14 @@ public class AxisLineRenderer {
         double z = (pos.getZ() + 0.5d - cameraPos.z);
 
         blockPos = new Vec3d(x,y,z);
+        Axis k = lockedAxisData.axis();
 
-        this.line.updateVertexes(blockPos,lockedAxisData.axis());
+        //Flip the axis if direction was flipped to the North (Z) direction (prevents improper culling?);
+        if(axisDirection == Direction.NORTH) {
+            k = lockedAxisData.axis() == Axis.X ? Axis.Z : Axis.X;
+        }
+
+        this.line.updateVertexes(blockPos,k);
     }
 
     /**
@@ -180,5 +191,4 @@ public class AxisLineRenderer {
 
         matrixStack.translate((float) (-pos.x), (float) (-pos.y), (float) ((-pos.z) + 0.510));
     }
-
 }

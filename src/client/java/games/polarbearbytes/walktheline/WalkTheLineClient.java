@@ -4,7 +4,6 @@ import games.polarbearbytes.walktheline.network.SyncPacket;
 import games.polarbearbytes.walktheline.state.LockedAxisData;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.registry.RegistryKey;
@@ -26,12 +25,12 @@ public class WalkTheLineClient implements ClientModInitializer {
 			Register the packet that we use to tell the client the locked Axis, Coordinate per World (dimension)
 			And wither or not the mod is enabled
 		 */
-		PayloadTypeRegistry.playS2C().register(SyncPacket.ID, SyncPacket.PACKET_CODEC);
-		ClientPlayNetworking.registerGlobalReceiver(SyncPacket.ID, (packet, context) -> context.client().execute(() -> {
+		ClientPlayNetworking.registerGlobalReceiver(SyncPacket.PAYLOAD_ID, (packet, context) -> context.client().execute(() -> {
 			CLIENT_LOCKED_AXES.put(packet.worldKey(), packet.data());
 			modEnabled = packet.enabled();
 		}));
 
+		//TODO: decide wither or not to implement a particle line and / or particle picker screen
 		/*
 		 * Code that was going to display a screen to select which particle to use
 		 * May revisit or delete later

@@ -3,8 +3,6 @@ package games.polarbearbytes.walktheline.state;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import games.polarbearbytes.walktheline.WalkTheLine;
-import games.polarbearbytes.walktheline.network.SyncPacket;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.datafixer.DataFixTypes;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.server.MinecraftServer;
@@ -21,6 +19,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static games.polarbearbytes.walktheline.movement.AxisLockManager.determineDimensionLocks;
+import static games.polarbearbytes.walktheline.movement.AxisLockManager.syncToClient;
 
 /**
  * Player state class for saving the locked axis, coordinate data per world (dimension), per save, per player
@@ -33,6 +32,7 @@ public class PlayerState extends PersistentState {
             ).fieldOf("players").forGetter(PlayerState::getRawMap)
     ).apply(instance, PlayerState::new));
 
+    //TODO: put all custom Identifiers statically in a central class
     public static final PersistentStateType<PlayerState> TYPE = new PersistentStateType<>("walk_the_line_state",PlayerState::new, CODEC, DataFixTypes.PLAYER);
 
     private HashMap<UUID, SavesData> playersData = new HashMap<>();
@@ -48,6 +48,9 @@ public class PlayerState extends PersistentState {
         return WalkTheLine.server.getOverworld().getPersistentStateManager().getOrCreate(TYPE);
     }
 
+    /*
+    Overridden functions to allow for default parameters or allow specific values
+     */
     public SavesData getPlayerSaves(ServerPlayerEntity player){
         return playersData.computeIfAbsent(player.getUuid(),(uuid)-> new SavesData(new ConcurrentHashMap<>()));
     }
@@ -68,6 +71,13 @@ public class PlayerState extends PersistentState {
         return getLockedAxisData(player,saveName,worldKey);
     }
 
+    /**
+     * Called from teh Command event to enable. Gets the current locked axis data and
+     * sets the enabled flag
+     *
+     * @param player Server entity representing the player
+     * @param enabled Flag for wither or not the mod is enabled
+     */
     public void setEnabled(ServerPlayerEntity player, Boolean enabled){
         MinecraftServer server = player.getServer();
         if(server == null) return;
@@ -80,9 +90,12 @@ public class PlayerState extends PersistentState {
                     return new WorldsData(worldsData.worldData(),enabled);
                 });
         markDirty();
-
-        SyncPacket packet = new SyncPacket(player,enabled);
-        ServerPlayNetworking.send(player, packet);
+        RegistryKey<World> key = player.getWorld().getRegistryKey();
+        LockedAxisData data = PlayerState.get().getLockedAxisData(player);
+        if(data == null){
+            return;
+        }
+        syncToClient(player,key,data,enabled);
     }
 
     public boolean getEnabled(ServerPlayerEntity player){
