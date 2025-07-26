@@ -103,6 +103,6 @@ public class PlayerState extends PersistentState {
     }
 
     private Map<UUID, SavesData> getRawMap() {
-        return new HashMap<>(this.playersData);
+        return this.playersData;
     }
 }
