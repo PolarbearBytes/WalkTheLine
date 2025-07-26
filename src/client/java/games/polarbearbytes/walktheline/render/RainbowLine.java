@@ -6,6 +6,7 @@ import net.minecraft.util.math.Vec3d;
 import org.joml.Vector3f;
 
 import java.awt.*;
+import java.time.LocalTime;
 import java.util.Objects;
 
 /**
@@ -16,25 +17,27 @@ import java.util.Objects;
  * @since 2025-07-24
  */
 public class RainbowLine implements ILine {
-    private final int numberOfColorSegments;
     private Vec3d currentPosition;
     private final int size;
     private final Vector3f[] vertexes;
-    private int currentColorSegment;
-    private int startColor;
-    private int endColor;
+    private final int colorRotationTiming;
+    private int lineColor;
 
     /**
      * Constructor
      *
      * @param size int size of the line (will be twice this as size is applied to both negative and positive axis)
-     * @param numberOfColorSegments number of color segments to cycle through (higher number slower rotation)
+     * @param colorRotationTiming number of seconds it takes to do a full color rotation
      */
-    public RainbowLine(int size, int numberOfColorSegments){
+    public RainbowLine(int size, int colorRotationTiming){
         this.size = size;
         this.vertexes = new Vector3f[8];
-        this.currentColorSegment = 0;
-        this.numberOfColorSegments = numberOfColorSegments;
+        this.colorRotationTiming = colorRotationTiming;
+    }
+
+    public void tick(){
+        float delta = (float) LocalTime.now().toNanoOfDay() / 1000000000 % colorRotationTiming;
+        this.updateColor(delta / colorRotationTiming);
     }
 
     /**
@@ -79,16 +82,9 @@ public class RainbowLine implements ILine {
     /**
      * Calculates the next starting and ending colors for the next render cycle
      */
-    public void nextColorSegment(){
-        currentColorSegment = (currentColorSegment+1) % numberOfColorSegments;
-
-        float startColorHue = (float) currentColorSegment / numberOfColorSegments;
-        float endColorHue = (float) ((currentColorSegment+1) % numberOfColorSegments) / numberOfColorSegments;
-
-        this.startColor = Color.HSBtoRGB(startColorHue,1.0f,1.0f);
-        this.endColor = Color.HSBtoRGB(endColorHue,1.0f,1.0f);
-        startColor = (startColor & 0x00FFFFFF) | (255 << 24);
-        endColor = (endColor & 0x00FFFFFF) | (255 << 24);
+    public void updateColor(float hue){
+        lineColor = Color.HSBtoRGB(hue,1.0f,1.0f);
+        lineColor = (lineColor & 0x00FFFFFF) | (255 << 24);
     }
 
     /**
@@ -97,16 +93,14 @@ public class RainbowLine implements ILine {
      * @param builder BufferBuilder used for rendering the vertices
      */
     public void addToBuffer(BufferBuilder builder){
-        nextColorSegment();
+        builder.vertex(vertexes[0].x,vertexes[0].y,vertexes[0].z).color(lineColor);
+        builder.vertex(vertexes[1].x,vertexes[1].y,vertexes[1].z).color(lineColor);
+        builder.vertex(vertexes[2].x,vertexes[2].y,vertexes[2].z).color(lineColor);
+        builder.vertex(vertexes[3].x,vertexes[3].y,vertexes[3].z).color(lineColor);
 
-        builder.vertex(vertexes[0].x,vertexes[0].y,vertexes[0].z).color(endColor);
-        builder.vertex(vertexes[1].x,vertexes[1].y,vertexes[1].z).color(endColor);
-        builder.vertex(vertexes[2].x,vertexes[2].y,vertexes[2].z).color(startColor);
-        builder.vertex(vertexes[3].x,vertexes[3].y,vertexes[3].z).color(startColor);
-
-        builder.vertex(vertexes[4].x,vertexes[4].y,vertexes[4].z).color(startColor);
-        builder.vertex(vertexes[5].x,vertexes[5].y,vertexes[5].z).color(startColor);
-        builder.vertex(vertexes[6].x,vertexes[6].y,vertexes[6].z).color(endColor);
-        builder.vertex(vertexes[7].x,vertexes[7].y,vertexes[7].z).color(endColor);
+        builder.vertex(vertexes[4].x,vertexes[4].y,vertexes[4].z).color(lineColor);
+        builder.vertex(vertexes[5].x,vertexes[5].y,vertexes[5].z).color(lineColor);
+        builder.vertex(vertexes[6].x,vertexes[6].y,vertexes[6].z).color(lineColor);
+        builder.vertex(vertexes[7].x,vertexes[7].y,vertexes[7].z).color(lineColor);
     }
 }

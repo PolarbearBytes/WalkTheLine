@@ -10,4 +10,7 @@ public class WalkTheLineConfig {
     public double coordinateTolerance = 0.40;
     //How faraway from the locked axis coordinate to just teleport instead of simply doing a pushback
     public double teleportTolerance = 2;
+
+    public int lineLength = 64;
+    public int lineColorRotateTiming = 6;
 }

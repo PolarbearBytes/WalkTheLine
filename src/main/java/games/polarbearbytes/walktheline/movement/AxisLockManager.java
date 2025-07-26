@@ -239,7 +239,7 @@ public class AxisLockManager {
             //the end dimension
             default -> {
                 axis = Axis.Z;
-                coordinate = -0.5d;
+                coordinate = 0.5d;
             }
         }
         return new LockedAxisData(axis, coordinate);

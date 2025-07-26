@@ -7,6 +7,8 @@ import com.mojang.blaze3d.platform.DestFactor;
 import com.mojang.blaze3d.platform.SourceFactor;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.VertexFormat;
+import games.polarbearbytes.walktheline.config.ConfigManager;
+import games.polarbearbytes.walktheline.config.WalkTheLineConfig;
 import games.polarbearbytes.walktheline.render.ILine;
 import games.polarbearbytes.walktheline.render.RainbowLine;
 import games.polarbearbytes.walktheline.render.RenderContext;
@@ -76,11 +78,9 @@ public class AxisLineRenderer {
     }
 
     private AxisLineRenderer(){
-        WalkTheLine.LOGGER.warn("AxisLineRenderer remade:");
         this.mc = MinecraftClient.getInstance();
-
-        //TODO: Make into config settings at some point
-        this.line = new RainbowLine(16,256);
+        WalkTheLineConfig config = ConfigManager.getConfig();
+        this.line = new RainbowLine(config.lineLength,config.lineColorRotateTiming);
     }
 
     public static AxisLineRenderer getInstance(){
@@ -125,7 +125,7 @@ public class AxisLineRenderer {
         if(axisDirection == Direction.NORTH) {
             k = lockedAxisData.axis() == Axis.X ? Axis.Z : Axis.X;
         }
-
+        this.line.tick();
         this.line.updateVertexes(blockPos,k);
     }
 
