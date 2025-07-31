@@ -7,7 +7,6 @@ import org.joml.Vector3f;
 
 import java.awt.*;
 import java.time.LocalTime;
-import java.util.Objects;
 
 /**
  * RainbowLine creates a line with a rotating color
@@ -55,16 +54,6 @@ public class RainbowLine implements ILine {
         if(position.equals(this.currentPosition)) return;
 
         this.currentPosition = position;
-        Vector3f start;
-        Vector3f end;
-
-        if (Objects.requireNonNull(axis) == Axis.Z) {
-            start = new Vector3f((float) position.getX(), (float) position.getY() + size, (float) position.getZ());
-            end = new Vector3f((float) position.getX(), (float) position.getY() - size, (float) position.getZ());
-        } else {
-            start = new Vector3f((float) position.getX() + size, (float) position.getY(), (float) position.getZ());
-            end = new Vector3f((float) position.getX() - size, (float) position.getY(), (float) position.getZ());
-        }
 
         //clockwise
         vertexes[0] = new Vector3f( (float) (position.x - 0.50), (float) (position.y - 0.5)-size, (float) position.z);
@@ -97,7 +86,7 @@ public class RainbowLine implements ILine {
         int r = lineColor >> 16 & 0xFF;
         int g = lineColor >> 8  & 0xFF;
         int b = lineColor & 0xFF;
-        int c = 255;
+
         builder.vertex(vertexes[0].x,vertexes[0].y,vertexes[0].z).color(r, g, b, a).light(0xF000F0).next();
         builder.vertex(vertexes[1].x,vertexes[1].y,vertexes[1].z).color(r, g, b, a).next();
         builder.vertex(vertexes[2].x,vertexes[2].y,vertexes[2].z).color(r, g, b, a).next();

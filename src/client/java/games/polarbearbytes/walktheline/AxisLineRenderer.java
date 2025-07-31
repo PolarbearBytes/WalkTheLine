@@ -6,7 +6,6 @@ import games.polarbearbytes.walktheline.config.WalkTheLineConfig;
 import games.polarbearbytes.walktheline.render.ILine;
 import games.polarbearbytes.walktheline.render.RainbowLine;
 import games.polarbearbytes.walktheline.state.LockedAxisData;
-import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.*;
@@ -45,10 +44,10 @@ public class AxisLineRenderer {
     private final ILine line;
 
     /**
-     * Register the event(s) needed to call {@link #render(WorldRenderContext)}
+     * Register the event(s) needed to call {@link #render()}
      */
     public static void register() {
-        WorldRenderEvents.AFTER_ENTITIES.register(context -> AxisLineRenderer.getInstance().render(context));
+        WorldRenderEvents.AFTER_ENTITIES.register(context -> AxisLineRenderer.getInstance().render());
     }
 
     private AxisLineRenderer(){
@@ -93,15 +92,13 @@ public class AxisLineRenderer {
         double z = (pos.getZ() + 0.5d - cameraPos.z);
 
         blockPos = new Vec3d(x,y,z);
-        Axis k = lockedAxisData.axis();
-
         this.line.tick();
     }
 
     /**
      * Renders the line
      */
-    public void render(WorldRenderContext context) {
+    public void render() {
         if(!WalkTheLineClient.modEnabled) return;
 
         this.update();

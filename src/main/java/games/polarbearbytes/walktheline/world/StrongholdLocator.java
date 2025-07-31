@@ -12,7 +12,6 @@ import net.minecraft.server.world.ServerChunkManager;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.structure.StrongholdGenerator;
 import net.minecraft.structure.StructurePiece;
-import net.minecraft.structure.StructureSet;
 import net.minecraft.structure.StructureStart;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockBox;
@@ -38,7 +37,6 @@ public class StrongholdLocator {
      */
     public static RegistryEntryList<Structure> getStrongholdList(){
         DynamicRegistryManager manager = WalkTheLine.server.getOverworld().getRegistryManager();
-        Registry<StructureSet> structureSetRegistry = manager.get(RegistryKeys.STRUCTURE_SET);
         Registry<Structure> structureRegistry = manager.get(RegistryKeys.STRUCTURE);
 
         RegistryEntry<Structure> stronghold = structureRegistry.getEntry(
@@ -131,7 +129,6 @@ public class StrongholdLocator {
 
         //We need to force load the chunk so that the whole stronghold generates
         chunkManager.setChunkForced(chunkPos,true);
-        WorldChunk chunk = chunkManager.getWorldChunk(chunkPos.x, chunkPos.z);
-        return chunk;
+        return chunkManager.getWorldChunk(chunkPos.x, chunkPos.z);
     }
 }

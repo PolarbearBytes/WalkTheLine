@@ -36,7 +36,7 @@ public class PlayerState extends PersistentState {
     ).apply(instance, PlayerState::new));
 
     //TODO: put all custom Identifiers statically in a central class
-    public static final PersistentState.Type<PlayerState> TYPE = new PersistentState.Type<PlayerState>(PlayerState::new, PlayerState::create, DataFixTypes.PLAYER);
+    public static final PersistentState.Type<PlayerState> TYPE = new PersistentState.Type<>(PlayerState::new, PlayerState::create, DataFixTypes.PLAYER);
 
     private static PlayerState create(NbtCompound nbtCompound, RegistryWrapper.WrapperLookup wrapperLookup) {
         return CODEC.parse(NbtOps.INSTANCE,nbtCompound).getOrThrow();
