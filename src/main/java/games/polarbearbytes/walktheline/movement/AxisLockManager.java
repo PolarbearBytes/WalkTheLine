@@ -9,8 +9,8 @@ import games.polarbearbytes.walktheline.state.WorldsData;
 import games.polarbearbytes.walktheline.util.Utils;
 import games.polarbearbytes.walktheline.world.StrongholdLocator;
 import net.fabricmc.fabric.api.entity.event.v1.ServerEntityWorldChangeEvents;
-import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.PlayerEntity;
@@ -55,13 +55,14 @@ public class AxisLockManager {
         Same as the dimension change event above but for when player joins, but
         we return early if we haven't any locked data (e.g., when first creating / joining a game)
          */
-        ServerPlayerEvents.JOIN.register(player -> {
-            WorldsData worldsData = PlayerState.get().getWorldsData(player);
-            RegistryKey<World> worldKey = player.getWorld().getRegistryKey();
+
+         ServerPlayConnectionEvents.JOIN.register((client,test,s) -> {
+            WorldsData worldsData = PlayerState.get().getWorldsData(client.getPlayer());
+            RegistryKey<World> worldKey = client.getPlayer().getWorld().getRegistryKey();
             LockedAxisData lockedAxisData = worldsData.worldData().get(worldKey);
 
             if(lockedAxisData == null) return;
-            syncToClient(player,worldKey,lockedAxisData,worldsData.enabled());
+            syncToClient(client.getPlayer(),worldKey,lockedAxisData,worldsData.enabled());
         });
 
         /*
@@ -120,12 +121,12 @@ public class AxisLockManager {
                 case X -> {
                     Vec3d newPos = new Vec3d(data.coordinate(), pos.getY(), pos.getZ());
                     double y = findSafeYAbove(player, newPos);
-                    entity.teleport(world, newPos.getX(), y, newPos.getZ() ,EnumSet.noneOf(PositionFlag.class),player.getYaw(),player.getPitch(),false);
+                    entity.teleport(world, newPos.getX(), y, newPos.getZ(), EnumSet.noneOf(PositionFlag.class), player.getYaw(), player.getPitch());
                 }
                 case Z -> {
                     Vec3d newPos = new Vec3d(pos.getX(), pos.getY(), data.coordinate());
                     double y = findSafeYAbove(player, newPos);
-                    entity.teleport(world, newPos.getX(), y, newPos.getZ(),EnumSet.noneOf(PositionFlag.class),player.getYaw(),player.getPitch(),false);
+                    entity.teleport(world, newPos.getX(), y, newPos.getZ(),EnumSet.noneOf(PositionFlag.class),player.getYaw(),player.getPitch());
                 }
             }
             return;

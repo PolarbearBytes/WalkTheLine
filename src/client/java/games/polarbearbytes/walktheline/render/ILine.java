@@ -12,6 +12,6 @@ import net.minecraft.util.math.Vec3d;
  */
 public interface ILine {
     void addToBuffer(BufferBuilder builder);
-    void updateVertexes(Vec3d newPosition, Axis axis);
+    void updateVertexes(Vec3d newPosition, Axis axis, BufferBuilder buffer);
     void tick();
 }

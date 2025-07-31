@@ -1,31 +1,22 @@
 package games.polarbearbytes.walktheline;
 
-import com.mojang.blaze3d.buffers.BufferUsage;
-import com.mojang.blaze3d.pipeline.BlendFunction;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.platform.DepthTestFunction;
-import com.mojang.blaze3d.platform.DestFactor;
-import com.mojang.blaze3d.platform.SourceFactor;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.VertexFormat;
 import games.polarbearbytes.walktheline.config.ConfigManager;
 import games.polarbearbytes.walktheline.config.WalkTheLineConfig;
 import games.polarbearbytes.walktheline.render.ILine;
 import games.polarbearbytes.walktheline.render.RainbowLine;
-import games.polarbearbytes.walktheline.render.RenderContext;
 import games.polarbearbytes.walktheline.state.LockedAxisData;
+import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gl.UniformType;
-import net.minecraft.client.render.BufferBuilder;
-import net.minecraft.client.render.BuiltBuffer;
-import net.minecraft.client.render.VertexFormats;
-import net.minecraft.util.Identifier;
+import net.minecraft.client.render.*;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Direction.Axis;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4fStack;
+
+
 
 /**
  * Renderer responsible for rendering a line along the locked axis
@@ -35,25 +26,6 @@ import org.joml.Matrix4fStack;
  * @since 2025-07-24
  */
 public class AxisLineRenderer {
-    private static final BlendFunction BLENDER = new BlendFunction(SourceFactor.SRC_ALPHA, DestFactor.ONE_MINUS_SRC_ALPHA, SourceFactor.ONE, DestFactor.ZERO);
-
-    /**
-     * Custom pipeline so that line gets drawn and culled correctly
-     */
-    public static RenderPipeline AXIS_LINE_RENDERPIPELINE = RenderPipeline.builder()
-            .withUniform("ModelViewMat", UniformType.MATRIX4X4)
-            .withUniform("ProjMat", UniformType.MATRIX4X4)
-            .withVertexShader("core/position_color")
-            .withFragmentShader("core/position_color")
-            .withBlend(BLENDER)
-            .withVertexFormat(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.QUADS)
-            .withLocation(Identifier.of(WalkTheLine.MOD_ID, "pipeline"))
-            .withCull(true)
-            .withDepthWrite(true)
-            .withColorWrite(true)
-            .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
-            .build();
-
     private static AxisLineRenderer INSTANCE = null;
     private final MinecraftClient mc;
 
@@ -73,10 +45,10 @@ public class AxisLineRenderer {
     private final ILine line;
 
     /**
-     * Register the event(s) needed to call {@link #render()}
+     * Register the event(s) needed to call {@link #render(WorldRenderContext)}
      */
     public static void register() {
-        WorldRenderEvents.AFTER_ENTITIES.register(context -> AxisLineRenderer.getInstance().render());
+        WorldRenderEvents.AFTER_ENTITIES.register(context -> AxisLineRenderer.getInstance().render(context));
     }
 
     private AxisLineRenderer(){
@@ -104,7 +76,7 @@ public class AxisLineRenderer {
         if (lockedAxisData == null) return;
 
         //Need the opposite axis direction in order do the matrix rotation correctly
-        axisDirection = lockedAxisData.axis() == Axis.X ? Axis.Z.getDirections()[1] : Axis.X.getDirections()[0];
+        axisDirection = lockedAxisData.axis() == Axis.X ? Direction.NORTH : Direction.EAST;
 
         BlockPos pos = mc.player.getBlockPos();
         Vec3d cameraPos = mc.gameRenderer.getCamera().getPos();
@@ -123,38 +95,38 @@ public class AxisLineRenderer {
         blockPos = new Vec3d(x,y,z);
         Axis k = lockedAxisData.axis();
 
-        //Flip the axis if direction was flipped to the North (Z) direction (prevents improper culling?);
-        if(axisDirection == Direction.NORTH) {
-            k = lockedAxisData.axis() == Axis.X ? Axis.Z : Axis.X;
-        }
         this.line.tick();
-        this.line.updateVertexes(blockPos,k);
     }
 
     /**
      * Renders the line
      */
-    public void render() {
+    public void render(WorldRenderContext context) {
         if(!WalkTheLineClient.modEnabled) return;
 
         this.update();
 
-        Matrix4fStack matrix = RenderSystem.getModelViewStack();
-        matrix.pushMatrix();
-        translateToFace(matrix, blockPos , Direction.UP, axisDirection);
+        Matrix4fStack global4fStack = RenderSystem.getModelViewStack();
+        global4fStack.pushMatrix();
 
-        RenderContext ctx = new RenderContext(AXIS_LINE_RENDERPIPELINE, BufferUsage.STATIC_WRITE);
-        BufferBuilder builder = ctx.getBuilder();
+        translateToFace(global4fStack, blockPos, Direction.UP, axisDirection);
+        RenderSystem.applyModelViewMatrix();
+        RenderSystem.setShader(GameRenderer::getPositionColorProgram);
+        RenderSystem.enableDepthTest();
+        RenderSystem.enableCull();
 
-        this.line.addToBuffer(builder);
+        Tessellator tessellator = Tessellator.getInstance();
+        BufferBuilder buffer = tessellator.getBuffer();
 
-        BuiltBuffer meshData = builder.endNullable();
-        if (meshData != null) {
-            ctx.draw(meshData);
-            meshData.close();
-        }
-        ctx.reset();
-        matrix.popMatrix();
+        buffer.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
+
+        this.line.updateVertexes(blockPos,Axis.Z,buffer);
+        this.line.addToBuffer(buffer);
+
+        tessellator.draw();
+
+        global4fStack.popMatrix();
+        RenderSystem.applyModelViewMatrix();
     }
 
     /**
@@ -171,11 +143,11 @@ public class AxisLineRenderer {
         switch (side)
         {
             case DOWN:
-                matrixStack.rotateY(matrix4fRotateFix(180f - facing.getPositiveHorizontalDegrees()));
+                matrixStack.rotateY(matrix4fRotateFix(180f - facing.asRotation()));
                 matrixStack.rotateX(matrix4fRotateFix(90f));
                 break;
             case UP:
-                matrixStack.rotateY(matrix4fRotateFix(180f - facing.getPositiveHorizontalDegrees()));
+                matrixStack.rotateY(matrix4fRotateFix(180f - facing.asRotation()));
                 matrixStack.rotateX(matrix4fRotateFix(-90f));
                 break;
             case NORTH:

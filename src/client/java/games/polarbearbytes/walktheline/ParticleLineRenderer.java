@@ -39,13 +39,13 @@ public class ParticleLineRenderer {
                 double z = axis == Axis.Z ? axisCoord : centerZ + offset;
                 double y = centerY + 0.2; // slight offset above ground
 
-                world.addParticleClient(particleEffect, x + tolerance, y, z + tolerance, 0, 0, 0);
-                world.addParticleClient(particleEffect, x - tolerance, y, z - tolerance, 0, 0, 0);
+                world.addParticle(particleEffect, x + tolerance, y, z + tolerance, 0, 0, 0);
+                world.addParticle(particleEffect, x - tolerance, y, z - tolerance, 0, 0, 0);
             }
         });
     }
     public static ParticleEffect getParticleFromString(String id) {
-        Identifier particleId = Identifier.of(id);
+        Identifier particleId = Identifier.of("minecraft",id);
         ParticleEffect effect = (ParticleEffect) Registries.PARTICLE_TYPE.get(particleId);
 
         return (effect != null) ? effect : ParticleTypes.END_ROD; // Fallback

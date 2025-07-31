@@ -2,16 +2,17 @@ package games.polarbearbytes.walktheline.world;
 
 import com.mojang.datafixers.util.Pair;
 import games.polarbearbytes.walktheline.WalkTheLine;
-import net.minecraft.registry.RegistryEntryLookup;
+import net.minecraft.registry.DynamicRegistryManager;
+import net.minecraft.registry.Registry;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
-import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.registry.entry.RegistryEntryList;
 import net.minecraft.server.world.ServerChunkManager;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.structure.StrongholdGenerator;
 import net.minecraft.structure.StructurePiece;
+import net.minecraft.structure.StructureSet;
 import net.minecraft.structure.StructureStart;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockBox;
@@ -36,16 +37,15 @@ public class StrongholdLocator {
      * @return List of stronghold structures
      */
     public static RegistryEntryList<Structure> getStrongholdList(){
-        //long seed = WalkTheLine.server.getOverworld().getSeed();
+        DynamicRegistryManager manager = WalkTheLine.server.getOverworld().getRegistryManager();
+        Registry<StructureSet> structureSetRegistry = manager.get(RegistryKeys.STRUCTURE_SET);
+        Registry<Structure> structureRegistry = manager.get(RegistryKeys.STRUCTURE);
 
-        RegistryWrapper.WrapperLookup registryManager = WalkTheLine.server.getOverworld().getRegistryManager();
-        RegistryEntryLookup<Structure> structureRegistry = registryManager.getOrThrow(RegistryKeys.STRUCTURE);
+        RegistryEntry<Structure> stronghold = structureRegistry.getEntry(
+                RegistryKey.of(RegistryKeys.STRUCTURE, new Identifier("minecraft", "stronghold"))
+        ).get();
 
-        RegistryKey<Structure> strongholdKey = RegistryKey.of(RegistryKeys.STRUCTURE, Identifier.of("stronghold"));
-        RegistryEntry<Structure> strongholdEntry = structureRegistry.getOptional(strongholdKey)
-                .orElseThrow(() -> new IllegalStateException("Stronghold not found in registry"));
-
-        return RegistryEntryList.of(strongholdEntry);
+        return RegistryEntryList.of(stronghold);
     }
 
     /**
@@ -63,6 +63,7 @@ public class StrongholdLocator {
         Calls the internal locating code, /locate structure stronghold uses this
         Gives the location of the Start Structure.Piece, along with the Structure object
          */
+
         Pair<BlockPos, RegistryEntry<Structure>> pair = serverWorld.getChunkManager()
                 .getChunkGenerator()
                 .locateStructure(serverWorld, list, locationPos, 100, false);

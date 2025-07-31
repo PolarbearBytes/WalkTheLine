@@ -4,12 +4,14 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import games.polarbearbytes.walktheline.WalkTheLine;
 import net.minecraft.datafixer.DataFixTypes;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtOps;
 import net.minecraft.registry.RegistryKey;
+import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Uuids;
 import net.minecraft.world.PersistentState;
-import net.minecraft.world.PersistentStateType;
 import net.minecraft.world.World;
 
 import java.util.HashMap;
@@ -25,6 +27,7 @@ import static games.polarbearbytes.walktheline.movement.AxisLockManager.syncToCl
  * Player state class for saving the locked axis, coordinate data per world (dimension), per save, per player
  */
 public class PlayerState extends PersistentState {
+    public static final String ID = "walk_the_line_state";
     public static final Codec<PlayerState> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             Codec.unboundedMap(
                     Uuids.CODEC,
@@ -33,11 +36,25 @@ public class PlayerState extends PersistentState {
     ).apply(instance, PlayerState::new));
 
     //TODO: put all custom Identifiers statically in a central class
-    public static final PersistentStateType<PlayerState> TYPE = new PersistentStateType<>("walk_the_line_state",PlayerState::new, CODEC, DataFixTypes.PLAYER);
+    public static final PersistentState.Type<PlayerState> TYPE = new PersistentState.Type<PlayerState>(PlayerState::new, PlayerState::create, DataFixTypes.PLAYER);
+
+    private static PlayerState create(NbtCompound nbtCompound, RegistryWrapper.WrapperLookup wrapperLookup) {
+        return CODEC.parse(NbtOps.INSTANCE,nbtCompound).getOrThrow();
+    }
 
     private HashMap<UUID, SavesData> playersData = new HashMap<>();
 
-    public PlayerState() {}
+    public PlayerState() {
+
+    }
+
+    @Override
+    public NbtCompound writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registryLookup) {
+        var result = CODEC.encodeStart(NbtOps.INSTANCE, this);
+        return (NbtCompound) result.getOrThrow(error -> {
+            throw new RuntimeException("Failed to encode MyData: " + error);
+        });
+    }
 
     public PlayerState(Map<UUID, SavesData> playersData) {
         this.playersData = new HashMap<>();
@@ -45,7 +62,7 @@ public class PlayerState extends PersistentState {
     }
 
     public static PlayerState get() {
-        return WalkTheLine.server.getOverworld().getPersistentStateManager().getOrCreate(TYPE);
+        return WalkTheLine.server.getOverworld().getPersistentStateManager().getOrCreate(TYPE,ID);
     }
 
     /*
