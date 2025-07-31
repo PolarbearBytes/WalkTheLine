@@ -58,7 +58,10 @@ public class PlayerState extends PersistentState {
         return getPlayerSaves(player).savesData().computeIfAbsent(saveName,(savedName)-> new WorldsData(new ConcurrentHashMap<>(),false));
     }
     public LockedAxisData getLockedAxisData(ServerPlayerEntity player, String saveName, RegistryKey<World> worldKey){
-        return getWorldsData(player,saveName).worldData().computeIfAbsent(worldKey,(worlds)-> determineDimensionLocks(player,worldKey));
+        LockedAxisData retrieved = getWorldsData(player,saveName).worldData().computeIfAbsent(worldKey,(worlds)-> determineDimensionLocks(player,worldKey));
+        if(retrieved == null) return null;
+        syncToClient(player,worldKey,retrieved,getEnabled(player));
+        return retrieved;
     }
 
     public WorldsData getWorldsData(ServerPlayerEntity player){
