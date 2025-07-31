@@ -1,5 +1,6 @@
 package games.polarbearbytes.walktheline;
 
+import com.mojang.blaze3d.buffers.BufferUsage;
 import com.mojang.blaze3d.pipeline.BlendFunction;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.platform.DepthTestFunction;
@@ -15,6 +16,7 @@ import games.polarbearbytes.walktheline.render.RenderContext;
 import games.polarbearbytes.walktheline.state.LockedAxisData;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gl.UniformType;
 import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.BuiltBuffer;
 import net.minecraft.client.render.VertexFormats;
@@ -24,8 +26,6 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Direction.Axis;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4fStack;
-
-import static net.minecraft.client.gl.RenderPipelines.TRANSFORMS_AND_PROJECTION_SNIPPET;
 
 /**
  * Renderer responsible for rendering a line along the locked axis
@@ -40,7 +40,9 @@ public class AxisLineRenderer {
     /**
      * Custom pipeline so that line gets drawn and culled correctly
      */
-    public static RenderPipeline AXIS_LINE_RENDERPIPELINE = RenderPipeline.builder(TRANSFORMS_AND_PROJECTION_SNIPPET)
+    public static RenderPipeline AXIS_LINE_RENDERPIPELINE = RenderPipeline.builder()
+            .withUniform("ModelViewMat", UniformType.MATRIX4X4)
+            .withUniform("ProjMat", UniformType.MATRIX4X4)
             .withVertexShader("core/position_color")
             .withFragmentShader("core/position_color")
             .withBlend(BLENDER)
@@ -105,7 +107,7 @@ public class AxisLineRenderer {
         axisDirection = lockedAxisData.axis() == Axis.X ? Axis.Z.getDirections()[1] : Axis.X.getDirections()[0];
 
         BlockPos pos = mc.player.getBlockPos();
-        Vec3d cameraPos = mc.gameRenderer.getCamera().getCameraPos();
+        Vec3d cameraPos = mc.gameRenderer.getCamera().getPos();
 
         //Clamp the coordinates to align with the locked axis
         switch(lockedAxisData.axis()){
@@ -141,7 +143,7 @@ public class AxisLineRenderer {
         matrix.pushMatrix();
         translateToFace(matrix, blockPos , Direction.UP, axisDirection);
 
-        RenderContext ctx = new RenderContext(AXIS_LINE_RENDERPIPELINE);
+        RenderContext ctx = new RenderContext(AXIS_LINE_RENDERPIPELINE, BufferUsage.STATIC_WRITE);
         BufferBuilder builder = ctx.getBuilder();
 
         this.line.addToBuffer(builder);

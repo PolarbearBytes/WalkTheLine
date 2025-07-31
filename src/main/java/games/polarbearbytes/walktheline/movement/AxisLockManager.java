@@ -167,7 +167,7 @@ public class AxisLockManager {
      * @return The Y coordinate that we have determined to be safe
      */
     private static double findSafeYAbove(ServerPlayerEntity player, Vec3d position) {
-        ServerWorld world = player.getWorld();
+        ServerWorld world = (ServerWorld) player.getWorld();
         BlockPos.Mutable mutablePosition = new BlockPos.Mutable((int) Math.floor(position.getX()), world.getHeight(), (int) Math.floor(position.getZ()));
         int bottom = world.getBottomY();
         boolean isHeadAir = world.getBlockState(mutablePosition).isAir();
