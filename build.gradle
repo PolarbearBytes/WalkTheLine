@@ -69,12 +69,15 @@ java {
 	targetCompatibility = JavaVersion.VERSION_21
 }
 
-jar {
-	inputs.property "archivesName", project.base.archivesName
-
+tasks.jar {
 	from("LICENSE") {
-		rename { "${it}_${inputs.properties.archivesName}"}
+		rename { "${it}_${project.base.archivesName.get()}" }
 	}
+	archiveFileName.set("${project.base.archivesName.get()}-${project.version}-${project.property("minecraft_version")}-${project.property("minecraft_max_version")}.jar")
+}
+
+tasks.remapJar {
+	archiveFileName.set("${project.base.archivesName.get()}-${project.version}-${project.property("minecraft_version")}-${project.property("minecraft_max_version")}.jar")
 }
 
 // configure the maven publication

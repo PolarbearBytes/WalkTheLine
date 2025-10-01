@@ -27,23 +27,29 @@ public class ServerEvents {
         Probably change to a keybinding maybe, also locking the mod
         to enabled when the mod is first enabled to prevent players
         from being able to disable mod, do stuff and then re-enable
-         */
-        CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> dispatcher.register(
-                literal("walktheline")
-                        .then(literal("enable")
-                                .executes(ctx -> {
-                                    PlayerState.get().setEnabled(ctx.getSource().getPlayer(),true);
-                                    ctx.getSource().sendFeedback(() -> Text.literal("Walk the Line enabled."), false);
-                                    return 1;
-                                })
-                        )
-                        .then(literal("disable")
-                                .executes(ctx -> {
-                                    PlayerState.get().setEnabled(ctx.getSource().getPlayer(),false);
-                                    ctx.getSource().sendFeedback(() -> Text.literal("Walk the Line disabled."), false);
-                                    return 1;
-                                })
-                        )
-        ));
+        */
+
+        CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
+            // Register only for server-side (both dedicated + integrated worlds)
+            if (environment.integrated || environment.dedicated) {
+                dispatcher.register(
+                        literal("walktheline")
+                                .then(literal("enable")
+                                        .executes(ctx -> {
+                                            PlayerState.get().setEnabled(ctx.getSource().getPlayer(), true);
+                                            ctx.getSource().sendFeedback(() -> Text.literal("Walk the Line enabled."), false);
+                                            return 1;
+                                        })
+                                )
+                                .then(literal("disable")
+                                        .executes(ctx -> {
+                                            PlayerState.get().setEnabled(ctx.getSource().getPlayer(), false);
+                                            ctx.getSource().sendFeedback(() -> Text.literal("Walk the Line disabled."), false);
+                                            return 1;
+                                        })
+                                )
+                );
+            }
+        });
     }
 }

@@ -57,7 +57,7 @@ public class AxisLockManager {
          */
         ServerPlayerEvents.JOIN.register(player -> {
             WorldsData worldsData = PlayerState.get().getWorldsData(player);
-            RegistryKey<World> worldKey = player.getWorld().getRegistryKey();
+            RegistryKey<World> worldKey = player.getEntityWorld().getRegistryKey();
             LockedAxisData lockedAxisData = worldsData.worldData().get(worldKey);
 
             if(lockedAxisData == null) return;
@@ -80,7 +80,7 @@ public class AxisLockManager {
      * @param player The server entity representing the player
      */
     public static void handlePlayerTick(PlayerEntity player) {
-        if (player.isRemoved() || !player.isAlive() || player.getWorld().isClient() || player.isSleeping()) return;
+        if (player.isRemoved() || !player.isAlive() || player.getEntityWorld().isClient() || player.isSleeping()) return;
         if(!PlayerState.get().getEnabled((ServerPlayerEntity) player)) return;
         LockedAxisData lockedAxisData = PlayerState.get().getLockedAxisData((ServerPlayerEntity) player);
         if(lockedAxisData == null) return;
@@ -113,8 +113,8 @@ public class AxisLockManager {
             return;
         } else if(Math.abs(distance) >= teleportTolerance){
             //Past the teleport tolerance, so teleport entity back to the locked coordinate
-            ServerWorld world = (ServerWorld) entity.getWorld();
-            Vec3d pos = entity.getPos();
+            ServerWorld world = (ServerWorld) entity.getEntityWorld();
+            Vec3d pos = entity.getEntityPos();
             player.setVelocity(0.0f,0.0f,0.0f);
             switch(data.axis()){
                 case X -> {
@@ -167,7 +167,7 @@ public class AxisLockManager {
      * @return The Y coordinate that we have determined to be safe
      */
     private static double findSafeYAbove(ServerPlayerEntity player, Vec3d position) {
-        ServerWorld world = player.getWorld();
+        ServerWorld world = player.getEntityWorld();
         BlockPos.Mutable mutablePosition = new BlockPos.Mutable((int) Math.floor(position.getX()), world.getHeight(), (int) Math.floor(position.getZ()));
         int bottom = world.getBottomY();
         boolean isHeadAir = world.getBlockState(mutablePosition).isAir();
@@ -199,7 +199,7 @@ public class AxisLockManager {
      */
     public static LockedAxisData determineDimensionLocks(ServerPlayerEntity player, RegistryKey<World> worldKey) {
         PlayerState state = PlayerState.get();
-        MinecraftServer server = player.getServer();
+        MinecraftServer server = player.getEntityWorld().getServer();
         if(server == null) return null;
         String saveName = server.getSaveProperties().getLevelName();
         Axis axis;
@@ -208,7 +208,7 @@ public class AxisLockManager {
         switch (worldKey.getValue().getPath()) {
             case "overworld" -> {
                 //Get the overworld's spawn location
-                BlockPos spawnPosition = player.getServer().getOverworld().getSpawnPos();
+                BlockPos spawnPosition = player.getEntityWorld().getSpawnPoint().getPos();
 
                 //Find the closest stronghold and return position and axis
                 Pair<BlockPos, Direction> locationPair = StrongholdLocator.getClosestStrongHoldPortalroom(spawnPosition);
@@ -230,11 +230,11 @@ public class AxisLockManager {
                 coordinate = pos.getComponentAlongAxis(axis) + 0.5d;
             }
             case "the_nether" -> {
-                ServerWorld nether = player.getServer().getWorld(World.NETHER);
+                ServerWorld nether = player.getEntityWorld().getServer().getWorld(World.NETHER);
                 if(nether == null) return null;
                 LockedAxisData data = state.getLockedAxisData(player,saveName, World.OVERWORLD);
                 axis = data.axis();
-                coordinate = Math.floor(player.getPos().getComponentAlongAxis(axis)) + 0.5d;
+                coordinate = Math.floor(player.getEntityPos().getComponentAlongAxis(axis)) + 0.5d;
             }
             //the end dimension
             default -> {

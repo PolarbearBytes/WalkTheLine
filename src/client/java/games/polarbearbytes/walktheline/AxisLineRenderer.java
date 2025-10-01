@@ -1,5 +1,6 @@
 package games.polarbearbytes.walktheline;
 
+import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.pipeline.BlendFunction;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.platform.DepthTestFunction;
@@ -13,16 +14,17 @@ import games.polarbearbytes.walktheline.render.ILine;
 import games.polarbearbytes.walktheline.render.RainbowLine;
 import games.polarbearbytes.walktheline.render.RenderContext;
 import games.polarbearbytes.walktheline.state.LockedAxisData;
-import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.render.BufferBuilder;
-import net.minecraft.client.render.BuiltBuffer;
-import net.minecraft.client.render.VertexFormats;
+import net.minecraft.client.gl.Framebuffer;
+import net.minecraft.client.render.*;
+import net.minecraft.client.util.Handle;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Direction.Axis;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.profiler.Profiler;
+import org.joml.Matrix4f;
 import org.joml.Matrix4fStack;
 
 import static net.minecraft.client.gl.RenderPipelines.TRANSFORMS_AND_PROJECTION_SNIPPET;
@@ -47,9 +49,9 @@ public class AxisLineRenderer {
             .withVertexFormat(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.QUADS)
             .withLocation(Identifier.of(WalkTheLine.MOD_ID, "pipeline"))
             .withCull(true)
-            .withDepthWrite(true)
             .withColorWrite(true)
             .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
+            .withDepthWrite(true)
             .build();
 
     private static AxisLineRenderer INSTANCE = null;
@@ -74,7 +76,7 @@ public class AxisLineRenderer {
      * Register the event(s) needed to call {@link #render()}
      */
     public static void register() {
-        WorldRenderEvents.AFTER_ENTITIES.register(context -> AxisLineRenderer.getInstance().render());
+        //WorldRendererMixin.register(() -> AxisLineRenderer.getInstance().render());
     }
 
     private AxisLineRenderer(){
@@ -98,7 +100,7 @@ public class AxisLineRenderer {
     public void update() {
         if (mc.player == null) return;
 
-        LockedAxisData lockedAxisData = WalkTheLineClient.getLockedAxis(mc.player.getWorld().getRegistryKey());
+        LockedAxisData lockedAxisData = WalkTheLineClient.getLockedAxis(mc.player.getEntityWorld().getRegistryKey());
         if (lockedAxisData == null) return;
 
         //Need the opposite axis direction in order do the matrix rotation correctly
@@ -132,27 +134,38 @@ public class AxisLineRenderer {
     /**
      * Renders the line
      */
-    public void render() {
+    public void render(Matrix4f matrix4f, Matrix4f projectionMatrix, MinecraftClient client, FrameGraphBuilder frameGraphBuilder, DefaultFramebufferSet fbSet, Frustum frustum, Camera camera, BufferBuilderStorage bufferBuilders, Profiler profiler) {
         if(!WalkTheLineClient.modEnabled) return;
 
         this.update();
 
-        Matrix4fStack matrix = RenderSystem.getModelViewStack();
-        matrix.pushMatrix();
-        translateToFace(matrix, blockPos , Direction.UP, axisDirection);
+        FramePass pass = frameGraphBuilder.createPass(WalkTheLine.MOD_ID+"_pre_weather");
+        fbSet.mainFramebuffer = pass.transfer(fbSet.mainFramebuffer);
+        Handle<Framebuffer> handleMain = fbSet.mainFramebuffer;
+        pass.setRenderer(() -> {
+            GpuBufferSlice fog = RenderSystem.getShaderFog();
+            Framebuffer fb = handleMain.get();
 
-        RenderContext ctx = new RenderContext(AXIS_LINE_RENDERPIPELINE);
-        BufferBuilder builder = ctx.getBuilder();
+            Matrix4fStack matrix = RenderSystem.getModelViewStack();
+            matrix.pushMatrix();
 
-        this.line.addToBuffer(builder);
+            translateToFace(matrix, blockPos, Direction.UP, axisDirection);
 
-        BuiltBuffer meshData = builder.endNullable();
-        if (meshData != null) {
-            ctx.draw(meshData);
-            meshData.close();
-        }
-        ctx.reset();
-        matrix.popMatrix();
+            RenderContext ctx = new RenderContext(AXIS_LINE_RENDERPIPELINE);
+            BufferBuilder builder = ctx.getBuilder();
+
+            this.line.addToBuffer(builder);
+
+            BuiltBuffer meshData = builder.endNullable();
+            if (meshData != null) {
+                ctx.draw(meshData);
+                meshData.close();
+            }
+            ctx.reset();
+            matrix.popMatrix();
+
+            RenderSystem.setShaderFog(fog);
+        });
     }
 
     /**

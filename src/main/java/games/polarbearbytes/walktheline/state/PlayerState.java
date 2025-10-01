@@ -65,12 +65,12 @@ public class PlayerState extends PersistentState {
     }
 
     public WorldsData getWorldsData(ServerPlayerEntity player){
-        String saveName = Objects.requireNonNull(player.getServer()).getSaveProperties().getLevelName();
+        String saveName = Objects.requireNonNull(player.getEntityWorld().getServer()).getSaveProperties().getLevelName();
         return getWorldsData(player,saveName);
     }
     public LockedAxisData getLockedAxisData(ServerPlayerEntity player){
-        String saveName = Objects.requireNonNull(player.getServer()).getSaveProperties().getLevelName();
-        RegistryKey<World> worldKey = player.getWorld().getRegistryKey();
+        String saveName = Objects.requireNonNull(player.getEntityWorld().getServer()).getSaveProperties().getLevelName();
+        RegistryKey<World> worldKey = player.getEntityWorld().getRegistryKey();
         return getLockedAxisData(player,saveName,worldKey);
     }
 
@@ -82,7 +82,7 @@ public class PlayerState extends PersistentState {
      * @param enabled Flag for wither or not the mod is enabled
      */
     public void setEnabled(ServerPlayerEntity player, Boolean enabled){
-        MinecraftServer server = player.getServer();
+        MinecraftServer server = player.getEntityWorld().getServer();
         if(server == null) return;
         String saveName = server.getSaveProperties().getLevelName();
         getPlayerSaves(player).savesData().compute(saveName,
@@ -93,7 +93,7 @@ public class PlayerState extends PersistentState {
                     return new WorldsData(worldsData.worldData(),enabled);
                 });
         markDirty();
-        RegistryKey<World> key = player.getWorld().getRegistryKey();
+        RegistryKey<World> key = player.getEntityWorld().getRegistryKey();
         LockedAxisData data = PlayerState.get().getLockedAxisData(player);
         if(data == null){
             return;
