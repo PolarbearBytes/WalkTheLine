@@ -43,6 +43,12 @@ public class WalkTheLineClientConfig implements ConfigData {
         return AutoConfig.getConfigHolder(WalkTheLineClientConfig.class).getConfig();
     }
 
+    public static void reset(){
+        modEnabled = false;
+        tolerance = 0.5;
+        CLIENT_LOCKED_AXES.clear();
+    }
+
     public static void register(){
         AutoConfig.register(WalkTheLineClientConfig.class, GsonConfigSerializer::new);
     }

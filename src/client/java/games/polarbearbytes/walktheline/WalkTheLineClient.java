@@ -6,6 +6,7 @@ import games.polarbearbytes.walktheline.render.LineBase;
 import games.polarbearbytes.walktheline.render.LineRenderer;
 import games.polarbearbytes.walktheline.render.RendererHandler;
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.loader.api.FabricLoader;
 import net.irisshaders.iris.api.v0.IrisApi;
@@ -30,5 +31,9 @@ public class WalkTheLineClient implements ClientModInitializer {
 			WalkTheLineClientConfig.tolerance = packet.coordTolerance();
 			WalkTheLineClientConfig.modEnabled = packet.enabled();
 		}));
+
+		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+			WalkTheLineClientConfig.reset();
+		});
 	}
 }

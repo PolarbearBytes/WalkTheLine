@@ -1,6 +1,7 @@
 package games.polarbearbytes.walktheline.movement;
 
 import com.mojang.datafixers.util.Pair;
+import games.polarbearbytes.walktheline.WalkTheLine;
 import games.polarbearbytes.walktheline.config.ConfigManager;
 import games.polarbearbytes.walktheline.config.WalkTheLineConfig;
 import games.polarbearbytes.walktheline.network.SyncPacket;
@@ -212,7 +213,7 @@ public class AxisLockManager {
                     axis = Axis.X;
                 }
 
-                coordinate = pos.getComponentAlongAxis(axis) + 0.5d;
+                coordinate = pos.toCenterPos().getComponentAlongAxis(axis);
             }
             case "the_nether" -> {
                 ServerWorld nether = player.getEntityWorld().getServer().getWorld(World.NETHER);
@@ -227,7 +228,9 @@ public class AxisLockManager {
                 coordinate = 0.5d;
             }
         }
-        return new LockedAxisData(axis, coordinate);
+        LockedAxisData data = new LockedAxisData(axis, coordinate);
+        syncToClient(player,worldKey,data,PlayerState.get().getEnabled(player));
+        return data;
     }
 
     /**
