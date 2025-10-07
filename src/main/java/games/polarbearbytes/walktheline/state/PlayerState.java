@@ -32,7 +32,6 @@ public class PlayerState extends PersistentState {
             ).fieldOf("players").forGetter(PlayerState::getRawMap)
     ).apply(instance, PlayerState::new));
 
-    //TODO: put all custom Identifiers statically in a central class
     public static final PersistentStateType<PlayerState> TYPE = new PersistentStateType<>("walk_the_line_state",PlayerState::new, CODEC, DataFixTypes.PLAYER);
 
     private HashMap<UUID, SavesData> playersData = new HashMap<>();
@@ -58,10 +57,7 @@ public class PlayerState extends PersistentState {
         return getPlayerSaves(player).savesData().computeIfAbsent(saveName,(savedName)-> new WorldsData(new ConcurrentHashMap<>(),false));
     }
     public LockedAxisData getLockedAxisData(ServerPlayerEntity player, String saveName, RegistryKey<World> worldKey){
-        LockedAxisData retrieved = getWorldsData(player,saveName).worldData().computeIfAbsent(worldKey,(worlds)-> determineDimensionLocks(player,worldKey));
-        if(retrieved == null) return null;
-        syncToClient(player,worldKey,retrieved,getEnabled(player));
-        return retrieved;
+        return getWorldsData(player,saveName).worldData().computeIfAbsent(worldKey,(worlds)-> determineDimensionLocks(player,worldKey));
     }
 
     public WorldsData getWorldsData(ServerPlayerEntity player){
@@ -83,7 +79,6 @@ public class PlayerState extends PersistentState {
      */
     public void setEnabled(ServerPlayerEntity player, Boolean enabled){
         MinecraftServer server = player.getEntityWorld().getServer();
-        if(server == null) return;
         String saveName = server.getSaveProperties().getLevelName();
         getPlayerSaves(player).savesData().compute(saveName,
                 (savedName,worldsData)->{

@@ -42,6 +42,7 @@ public class ConfigManager {
     }
 
     public static WalkTheLineConfig getConfig() {
+        loadConfig();
         return config;
     }
 }

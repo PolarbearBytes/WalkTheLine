@@ -1,13 +1,22 @@
 package games.polarbearbytes.walktheline.render;
 
+import games.polarbearbytes.walktheline.WalkTheLine;
+import games.polarbearbytes.walktheline.config.WalkTheLineClientConfig;
+import games.polarbearbytes.walktheline.state.LockedAxisData;
+import games.polarbearbytes.walktheline.util.Utils;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.BufferBuilder;
+import net.minecraft.client.render.BuiltBuffer;
+import net.minecraft.client.render.WorldRenderer;
+import net.minecraft.entity.Entity;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Direction.Axis;
 import net.minecraft.util.math.Vec3d;
-import org.joml.Vector3f;
+import net.minecraft.world.World;
 
 import java.awt.*;
 import java.time.LocalTime;
-import java.util.Objects;
 
 /**
  * RainbowLine creates a line with a rotating color
@@ -16,91 +25,116 @@ import java.util.Objects;
  * @version 1.0
  * @since 2025-07-24
  */
-public class RainbowLine implements ILine {
-    private Vec3d currentPosition;
-    private final int size;
-    private final Vector3f[] vertexes;
-    private final int colorRotationTiming;
-    private int lineColor;
+public class RainbowLine extends LineBase {
+    public final static RainbowLine INSTANCE = new RainbowLine();
 
-    /**
-     * Constructor
-     *
-     * @param size int size of the line (will be twice this as size is applied to both negative and positive axis)
-     * @param colorRotationTiming number of seconds it takes to do a full color rotation
-     */
-    public RainbowLine(int size, int colorRotationTiming){
-        this.size = size;
-        this.vertexes = new Vector3f[8];
-        this.colorRotationTiming = colorRotationTiming;
+    private RainbowLine(){
+        this.lineThickness = 8;
     }
 
-    public void tick(){
-        float delta = (float) LocalTime.now().toNanoOfDay() / 1000000000 % colorRotationTiming;
-        this.updateColor(delta / colorRotationTiming);
+    @Override
+    public boolean shouldUpdate(Entity entity, MinecraftClient client) {
+        return true;
     }
 
-    /**
-     * Method for updating the vertices of the line.
-     *
-     * @param position The center position of the line, {@link #size} is applied to the positive and negative axis
-     * @param axis The axis to which the line will stretch
-     */
-    public void updateVertexes(Vec3d position, Axis axis){
-        /*
-         Coordinate systems between the game world and vertex space have a swapped Z and Y axis
-         So when we apply size and other metrics we have to apply them to the opposite axis
-         */
+    @Override
+    public void render(Vec3d cameraPos, Entity entity, MinecraftClient client) {
+        if(client.world == null) return;
 
-        if(position.equals(this.currentPosition)) return;
+        LockedAxisData axisData = WalkTheLineClientConfig.getLockedAxisData(client.world);
+        if(lastEntityPosition == null || axisData == null) return;
+        double tolerance = WalkTheLineClientConfig.tolerance;
 
-        this.currentPosition = position;
-        Vector3f start;
-        Vector3f end;
+        BufferBuilder lineBuilder = this.renderContext.init();
+        Integer distance = client.options.getViewDistance().getValue();
 
-        if (Objects.requireNonNull(axis) == Axis.Z) {
-            start = new Vector3f((float) position.getX(), (float) position.getY() + size, (float) position.getZ());
-            end = new Vector3f((float) position.getX(), (float) position.getY() - size, (float) position.getZ());
+        WalkTheLineClientConfig config = WalkTheLineClientConfig.getConfig();
+        float lineWidth = config.lineWidth / 100f;
+
+        //This is the directions we walk forward and backward
+        Direction[] directions = (axisData.axis() == Axis.X ? Axis.Z : Axis.X).getDirections();
+
+        //This is the left to right directions that we are clamped on
+        Direction[] perpendicularDirections = axisData.axis().getDirections();
+
+        Vec3d lineStart = entity.getEntityPos().offset(directions[0], 16*distance);
+        Vec3d lineEnd = entity.getEntityPos().offset(directions[1], 16*distance);
+
+        if(axisData.axis() == Axis.Z){
+            lineStart = new Vec3d(lineStart.getX(), lineStart.getY(), axisData.coordinate());
+            lineEnd = new Vec3d(lineEnd.getX(), lineEnd.getY(), axisData.coordinate());
         } else {
-            start = new Vector3f((float) position.getX() + size, (float) position.getY(), (float) position.getZ());
-            end = new Vector3f((float) position.getX() - size, (float) position.getY(), (float) position.getZ());
+            lineStart = new Vec3d(axisData.coordinate(), lineStart.getY(), lineStart.getZ());
+            lineEnd = new Vec3d(axisData.coordinate(), lineEnd.getY(), lineEnd.getZ());
         }
 
-        //clockwise
-        vertexes[0] = new Vector3f( (float) (end.x - 0.50), (float) (end.y - 0.5), end.z );
-        vertexes[1] = new Vector3f( (float) (end.x - 0.47), (float) (end.y - 0.5), end.z );
-        vertexes[2] = new Vector3f( (float) (start.x - 0.47), (float) (start.y + 0.5), start.z );
-        vertexes[3] = new Vector3f( (float) (start.x - 0.50), (float) (start.y + 0.5), start.z );
+        float lineOffset = (float)-WalkTheLineClientConfig.tolerance - lineWidth;
 
-        //counterclockwise
-        vertexes[4] = new Vector3f( (float) (start.x + 0.50), (float) (start.y + 0.5), start.z );
-        vertexes[5] = new Vector3f( (float) (start.x + 0.47), (float) (start.y + 0.5), start.z );
-        vertexes[6] = new Vector3f( (float) (end.x + 0.47), (float) (end.y - 0.5), end.z );
-        vertexes[7] = new Vector3f( (float) (end.x + 0.50), (float) (end.y - 0.5), end.z );
+        Vec3d leftStart = lineStart.offset(perpendicularDirections[0],lineOffset);
+        Vec3d leftEnd = lineEnd.offset(perpendicularDirections[0],-tolerance);
+
+        Vec3d rightStart = lineStart.offset(perpendicularDirections[1],lineOffset);
+        Vec3d rightEnd = lineEnd.offset(perpendicularDirections[1],-tolerance);
+
+        buildFace(leftStart, leftEnd, lineBuilder, cameraPos, config, entity.getEntityWorld());
+        buildFace(rightStart, rightEnd, lineBuilder, cameraPos, config, entity.getEntityWorld());
+
+        try {
+            BuiltBuffer lineMeshData = lineBuilder.endNullable();
+            if (lineMeshData != null) {
+                renderContext.upload(lineMeshData);
+                lineMeshData.close();
+            }
+        } catch (Exception e){
+            WalkTheLine.LOGGER.error("RainbowLine#render() error: {}",e.getMessage());
+        }
     }
 
-    /**
-     * Calculates the next starting and ending colors for the next render cycle
-     */
-    public void updateColor(float hue){
-        lineColor = Color.HSBtoRGB(hue,1.0f,1.0f);
-        lineColor = (lineColor & 0x00FFFFFF) | (255 << 24);
+    public void buildFace(Vec3d start, Vec3d end, BufferBuilder builder, Vec3d cameraPos, WalkTheLineClientConfig config, World world){
+        float x1 = (float)(start.getX() - cameraPos.x);
+        float y1 = (float)(start.getY() - cameraPos.y);
+        float z1 = (float)(start.getZ() - cameraPos.z);
+        float x2 = (float)(end.getX() - cameraPos.x);
+        float y2 = (float)(end.getY() - cameraPos.y);
+        float z2 = (float)(end.getZ() - cameraPos.z);
+
+        int lineColor;
+        if( config.rotatingColor ) {
+            float speed = 0.2f; // smaller = slower, larger = faster
+            float seconds = (float) (LocalTime.now().toNanoOfDay() / 1_000_000_000.0);
+            float hue = (seconds * speed) % 1.0f; // loop hue every (1 / speed) seconds
+            lineColor = Color.HSBtoRGB(hue, 1.0f, 1.0f);
+            lineColor = (lineColor & 0x00FFFFFF) | ((255 * (config.rotatingColorAlpha/100)) << 24);
+        } else {
+            lineColor = Utils.colorHexToInt(config.singleColor.replace("#",""));
+        }
+
+        BlockPos pos;
+        int light;
+
+        pos = BlockPos.ofFloored(x1, y1, z1);
+        light = WorldRenderer.getLightmapCoordinates(world, pos);
+        builder.vertex(x1, y1+0.00f, z1).color(lineColor).light(light).normal(0,1,0);
+
+        pos = BlockPos.ofFloored(x2, y1, z1);
+        light = WorldRenderer.getLightmapCoordinates(world, pos);
+        builder.vertex(x2, y1+0.01f, z1).color(lineColor).light(light).normal(0,1,0);
+
+        pos = BlockPos.ofFloored(x2, y1, z2);
+        light = WorldRenderer.getLightmapCoordinates(world, pos);
+        builder.vertex(x2, y1+0.01f, z2).color(lineColor).light(light).normal(0,1,0);
+
+        pos = BlockPos.ofFloored(x1, y1, z2);
+        light = WorldRenderer.getLightmapCoordinates(world, pos);
+        builder.vertex(x1, y1+0.01f, z2).color(lineColor).light(light).normal(0,1,0);
     }
 
-    /**
-     * Add the vertices of the line to the builder
-     *
-     * @param builder BufferBuilder used for rendering the vertices
-     */
-    public void addToBuffer(BufferBuilder builder){
-        builder.vertex(vertexes[0].x,vertexes[0].y,vertexes[0].z).color(lineColor);
-        builder.vertex(vertexes[1].x,vertexes[1].y,vertexes[1].z).color(lineColor);
-        builder.vertex(vertexes[2].x,vertexes[2].y,vertexes[2].z).color(lineColor);
-        builder.vertex(vertexes[3].x,vertexes[3].y,vertexes[3].z).color(lineColor);
-
-        builder.vertex(vertexes[4].x,vertexes[4].y,vertexes[4].z).color(lineColor);
-        builder.vertex(vertexes[5].x,vertexes[5].y,vertexes[5].z).color(lineColor);
-        builder.vertex(vertexes[6].x,vertexes[6].y,vertexes[6].z).color(lineColor);
-        builder.vertex(vertexes[7].x,vertexes[7].y,vertexes[7].z).color(lineColor);
+    @Override
+    public void update(Vec3d cameraPos, Entity entity, MinecraftClient client) {
+        //TODO: probably should have some sort of checks here
+        this.render(cameraPos, entity, client);
     }
 }
+
+
+

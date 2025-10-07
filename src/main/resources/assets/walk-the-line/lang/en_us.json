@@ -1,0 +1,12 @@
+{
+  "text.autoconfig.walktheline.title": "Walk the Line Config",
+  "text.autoconfig.walktheline.option.rotatingColor": "Rotating Line Color",
+  "text.autoconfig.walktheline.option.rotatingColorAlpha": "Rotating Line Color Transparency",
+  "text.autoconfig.walktheline.option.singleColor": "Single Line Color",
+  "text.autoconfig.walktheline.option.lineWidth": "Width of Line (left / right side)",
+
+  "text.autoconfig.walktheline.option.rotatingColor.@Tooltip": "Line will appear with rotating colors",
+  "text.autoconfig.walktheline.option.rotatingColorAlpha.@Tooltip": "Transparency of rotating colors as %",
+  "text.autoconfig.walktheline.option.lineWidth.@Tooltip": "Size of the line on left and right side of player",
+  "text.autoconfig.walktheline.option.singleColor.@Tooltip": "RGBA Hex Code"
+}

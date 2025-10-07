@@ -1,7 +1,7 @@
 package games.polarbearbytes.walktheline.render;
 
-import net.minecraft.client.render.BufferBuilder;
-import net.minecraft.util.math.Direction.Axis;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.entity.Entity;
 import net.minecraft.util.math.Vec3d;
 
 /**
@@ -11,7 +11,13 @@ import net.minecraft.util.math.Vec3d;
  * @since 2025-07-24
  */
 public interface ILine {
-    void addToBuffer(BufferBuilder builder);
-    void updateVertexes(Vec3d newPosition, Axis axis);
-    void tick();
+    boolean shouldUpdate(Entity entity, MinecraftClient client);
+    void render(Vec3d cameraPos, Entity entity, MinecraftClient client);
+    void update(Vec3d cameraPos, Entity entity, MinecraftClient client);
+    void draw(Vec3d cameraPos);
+
+    Vec3d getLastCameraPosition();
+    void setLastCameraPosition(Vec3d lastPosition);
+
+    void reset();
 }

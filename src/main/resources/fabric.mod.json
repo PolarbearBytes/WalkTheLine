@@ -21,8 +21,11 @@
 		"client": [
 			"games.polarbearbytes.walktheline.WalkTheLineClient"
 		],
+		"modmenu": [
+			"games.polarbearbytes.walktheline.integration.ModMenuIntegration"
+		],
 		"fabric-datagen": [
-			"games.polarbearbytes.walktheline.WalkTheLineDataGenerator"
+
 		]
 	},
 	"mixins": [
@@ -34,11 +37,12 @@
 	],
 	"depends": {
 		"fabricloader": ">=0.16.14",
+		"cloth-config": "*",
 		"minecraft": ">=1.21.9-",
 		"java": ">=21",
 		"fabric-api": "*"
 	},
 	"suggests": {
-		"another-mod": "*"
+		"modmenu": "*"
 	}
 }

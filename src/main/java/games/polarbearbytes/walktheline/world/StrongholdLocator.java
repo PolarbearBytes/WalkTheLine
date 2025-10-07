@@ -130,7 +130,6 @@ public class StrongholdLocator {
 
         //We need to force load the chunk so that the whole stronghold generates
         chunkManager.setChunkForced(chunkPos,true);
-        WorldChunk chunk = chunkManager.getWorldChunk(chunkPos.x, chunkPos.z);
-        return chunk;
+        return chunkManager.getWorldChunk(chunkPos.x, chunkPos.z);
     }
 }

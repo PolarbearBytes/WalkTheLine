@@ -20,18 +20,16 @@ import static games.polarbearbytes.walktheline.WalkTheLine.MOD_ID;
  * @param data The locked axis, coordinate data
  * @param enabled Is the mod enabled
  */
-public record SyncPacket(RegistryKey<World> worldKey, LockedAxisData data, Boolean enabled)
+public record SyncPacket(RegistryKey<World> worldKey, LockedAxisData data, Double coordTolerance, Boolean enabled)
         implements CustomPayload {
-
-    //TODO: put all custom Identifiers statically in a central class
     public static final Identifier ID = Identifier.of(MOD_ID, "sync_locked_axis");
-
     public static final CustomPayload.Id<SyncPacket> PAYLOAD_ID = new CustomPayload.Id<>(ID);
 
     //Codec for serialization, deserialization our data for the client sync
     public static final PacketCodec<PacketByteBuf,SyncPacket> PACKET_CODEC = PacketCodec.tuple(
             PacketCodecs.codec(RegistryKey.createCodec(RegistryKeys.WORLD)), SyncPacket::worldKey,
             PacketCodecs.codec(LockedAxisData.CODEC), SyncPacket::data,
+            PacketCodecs.DOUBLE, SyncPacket::coordTolerance,
             PacketCodecs.codec(Codec.BOOL), SyncPacket::enabled,
             SyncPacket::new
     );

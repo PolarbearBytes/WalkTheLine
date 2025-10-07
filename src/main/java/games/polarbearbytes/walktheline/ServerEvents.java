@@ -21,7 +21,6 @@ public class ServerEvents {
         AxisLockManager.register();
         PayloadTypeRegistry.playS2C().register(SyncPacket.PAYLOAD_ID, SyncPacket.PACKET_CODEC);
 
-        //TODO: Make enabling permanent so that player cant "cheat" and disable do stuff and then re-enable
         /*
         Our command for enabling / disabling the mod for a save
         Probably change to a keybinding maybe, also locking the mod

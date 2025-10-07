@@ -7,255 +7,207 @@ import com.mojang.blaze3d.systems.CommandEncoder;
 import com.mojang.blaze3d.systems.GpuDevice;
 import com.mojang.blaze3d.systems.RenderPass;
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.systems.RenderSystem.ShapeIndexBuffer;
 import com.mojang.blaze3d.textures.GpuTextureView;
 import com.mojang.blaze3d.vertex.VertexFormat;
+import com.mojang.blaze3d.vertex.VertexFormat.DrawMode;
+import com.mojang.blaze3d.vertex.VertexFormat.IndexType;
 import games.polarbearbytes.walktheline.WalkTheLine;
+import lombok.Getter;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.Framebuffer;
 import net.minecraft.client.gl.ScissorState;
 import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.BuiltBuffer;
 import net.minecraft.client.util.BufferAllocator;
+import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
-
 import java.util.OptionalDouble;
 import java.util.OptionalInt;
+import java.util.function.Supplier;
 
 /**
- * Class to control the rendering pipeline
- * Stolen parts from the MaLiLib library
- * @see <a href="https://github.com/sakura-ryoko/malilib/blob/1.21.7-0.25.2/src/main/java/fi/dy/masa/malilib/render/RenderContext.java">github.com/sakura-ryoko/malilib</a>
- *
- * @author Sakura-Ryoko MaLiLib 1.21.5+
- * @author PolarbearBytes - Stripped down to only need for drawing lines
+ * Class to render stuff
+ * Inspired / rewrote based on code from sakura-ryoko's MiniHUD / Malilib forks
+ * <a href="https://github.com/sakura-ryoko">sakura-ryoko's GitHub</a>
  */
-public class RenderContext implements AutoCloseable {
-    public int indexCount;
-    public GpuBuffer vertexBuffer;
-    public GpuBuffer indexBuffer;
-    public VertexFormat.IndexType indexType;
-    public final String name = "WalkTheLine.RenderContext";
-    public RenderSystem.ShapeIndexBuffer shapeIndex;
-    public int textureId;
-    private BufferAllocator alloc;
-    private BufferBuilder builder;
-    private final RenderPipeline pipeline;
+public class RenderContext {
+    protected Supplier<String> id;
 
-    public RenderContext(RenderPipeline pipeline) {
-        this.pipeline = pipeline;
-        this.alloc = new BufferAllocator(pipeline.getVertexFormat().getVertexSize() * 4);
-        this.builder = new BufferBuilder(this.alloc, pipeline.getVertexFormatMode(), pipeline.getVertexFormat());
-        this.shapeIndex = RenderSystem.getSequentialBuffer(pipeline.getVertexFormatMode());
-        this.indexType = this.shapeIndex.getIndexType();
-        this.vertexBuffer = null;
-        this.indexBuffer = null;
-        this.indexCount = -1;
-        this.textureId = -1;
+    protected final RenderPipeline renderPipeline;
+
+    protected BufferAllocator bufferAllocator;
+    protected BufferBuilder bufferBuilder;
+    protected GpuBuffer vertexBuffer;
+    protected GpuBuffer indexBuffer;
+    protected ShapeIndexBuffer shapeIndexBuffer;
+    protected DrawMode drawMode;
+    protected VertexFormat vertexFormat;
+
+    protected int indexCount;
+    protected IndexType indexType;
+
+    public float lineWidth;
+
+    @Getter
+    protected boolean started;
+    @Getter
+    protected boolean uploaded;
+
+    public RenderContext(Supplier<String> id, RenderPipeline renderPipeline){
+        this.id = id;
+        this.renderPipeline = renderPipeline;
+        started = false;
+        uploaded = false;
+        lineWidth = 1;
     }
 
-    public BufferBuilder getBuilder(){
-        return this.builder;
+    public BufferBuilder init(){
+        this.reset();
+        drawMode = renderPipeline.getVertexFormatMode();
+        vertexFormat = renderPipeline.getVertexFormat();
+
+        bufferAllocator = new BufferAllocator(vertexFormat.getVertexSize() * 4);
+        bufferBuilder = new BufferBuilder(bufferAllocator, drawMode, vertexFormat);
+
+        shapeIndexBuffer = RenderSystem.getSequentialBuffer(drawMode);
+
+        vertexBuffer = null;
+        indexBuffer = null;
+
+        indexCount = -1;
+
+        started = true;
+        uploaded = false;
+
+        return bufferBuilder;
     }
 
-    public void draw(BuiltBuffer meshData){
-        try
-        {
-            if (RenderSystem.isOnRenderThread())
-            {
-                if (meshData == null)
-                {
-                    this.indexCount = 0;
-                }
-                else
-                {
-                    if (this.indexCount < 1)
-                    {
-                        this.writeVertexToBuffer(meshData);
-                    }
-                }
+    public void upload(BuiltBuffer meshData){
+        if(!RenderSystem.isOnRenderThread() || meshData == null) return;
+        int meshDataSize = meshData.getBuffer().remaining();
 
-                if (this.indexCount > 0)
-                {
-                    this.renderPass();
-                }
-            }
-            if(meshData != null) {
-                meshData.close();
-            }
-
-
-            this.reset();
+        //Close any pre-existing buffers
+        if(vertexBuffer != null){
+            this.vertexBuffer.close();
         }
-        catch (Exception err)
-        {
-            WalkTheLine.LOGGER.error("renderBlockTargetingOverlay():1: Draw Exception; {}", err.getMessage());
+
+        if(indexBuffer != null) {
+            indexBuffer.close();
+            indexBuffer = null;
         }
+
+        if(vertexBuffer == null || vertexBuffer.size() < meshDataSize){
+            //Create the vertex buffer or recreate it with the correct size
+            vertexBuffer = RenderSystem.getDevice().createBuffer(() -> this.id+"/VertexBuffer", 40, meshDataSize);
+        }
+
+        CommandEncoder commandEncoder = RenderSystem.getDevice().createCommandEncoder();
+
+        if (!vertexBuffer.isClosed()) {
+            //Copy the vertex data to the buffer
+            commandEncoder.writeToBuffer(vertexBuffer.slice(), meshData.getBuffer());
+        } else {
+            throw new RuntimeException("Copying Vertex Data to Buffer When Buffer is Closed");
+        }
+
+        //TODO: Probably should be buffer sorting logic here, but so far do not need it
+
+        //Set how many indices our meshData has
+        indexCount = meshData.getDrawParameters().indexCount();
+        //Set the data type for the indices
+        indexType = meshData.getDrawParameters().indexType();
+        uploaded = true;
     }
 
-    public void writeVertexToBuffer(BuiltBuffer meshData){
-        if (RenderSystem.isOnRenderThread() && meshData != null)
-        {
-            int expectedSize = meshData.getBuffer().remaining();
-            if (this.vertexBuffer != null)
-            {
-                this.vertexBuffer.close();
-            }
-
-            if (this.indexBuffer != null)
-            {
-                this.indexBuffer.close();
-                this.indexBuffer = null;
-            }
-
-            GpuDevice device = RenderSystem.tryGetDevice();
-
-            if (device == null)
-            {
-                WalkTheLine.LOGGER.warn("RenderContext#upload: GpuDevice is null for renderer '{}'", this.name);
-                return;
-            }
-
-            if (this.vertexBuffer == null)
-            {
-                this.vertexBuffer = device.createBuffer(() -> this.name+" VertexBuffer", 40, expectedSize);
-            }
-            else if (this.vertexBuffer.size() < expectedSize)
-            {
-                this.vertexBuffer.close();
-                this.vertexBuffer = device.createBuffer(() -> this.name+" VertexBuffer", 40, expectedSize);
-            }
-
-            CommandEncoder encoder = device.createCommandEncoder();
-
-            if (!this.vertexBuffer.isClosed())
-            {
-                encoder.writeToBuffer(this.vertexBuffer.slice(), meshData.getBuffer());
-            }
-            else
-            {
-                throw new RuntimeException("Vertex Buffer is closed!");
-            }
-
-            if (this.indexBuffer != null)
-            {
-                this.indexBuffer.close();
-                this.indexBuffer = null;
-            }
-
-            this.indexCount = meshData.getDrawParameters().indexCount();
-            this.indexType = meshData.getDrawParameters().indexType();
+    protected void draw(Framebuffer framebuffer, MinecraftClient client, GpuTextureView glTextureView){
+        if(!RenderSystem.isOnRenderThread()) return;
+        GpuDevice device = RenderSystem.getDevice();
+        if(device == null){
+            WalkTheLine.LOGGER.error("RenderSystem did not return a valid device!");
+            return;
         }
-    }
 
-    public void renderPass(){
-        if (RenderSystem.isOnRenderThread())
-        {
-            Vector4f colorMod = new Vector4f(1f, 1f, 1f, 1f);
-            Vector3f modelOffset = new Vector3f();
-            Matrix4f texMatrix = new Matrix4f();
-            float line = 0.0f;
+        GpuTextureView texture1;
+        GpuTextureView texture2;
 
-            GpuDevice device = RenderSystem.getDevice();
+        Framebuffer fb = framebuffer == null ? client.getFramebuffer() : framebuffer;
 
-            if (device == null)
-            {
-                WalkTheLine.LOGGER.warn("RenderContext#drawInternal: GpuDevice is null for renderer '{}'", this.name);
-                return;
+        texture1 = fb.getColorAttachmentView();
+        texture2 = fb.useDepthAttachment ? fb.getDepthAttachmentView() : null;
+
+
+        GpuBuffer indexBuffer = this.shapeIndexBuffer.getIndexBuffer(this.indexCount);
+
+        Vector4f colorMod = new Vector4f(1f, 1f, 1f, 1f);
+        Vector3f modelOffset = new Vector3f();
+        Matrix4f texMatrix = new Matrix4f();
+
+        Matrix3f normalMatrix = new Matrix3f(RenderSystem.getModelViewMatrix()).invert().transpose();
+
+        GpuBufferSlice bufferSlice = RenderSystem.getDynamicUniforms()
+                .write(
+                        RenderSystem.getModelViewMatrix(),
+                        colorMod,
+                        modelOffset,
+                        new Matrix4f(normalMatrix),
+                        0f);
+        try(RenderPass pass = device.createCommandEncoder().createRenderPass(this.id,
+                texture1, OptionalInt.empty(),
+                texture2, OptionalDouble.empty())) {
+            pass.setPipeline(this.renderPipeline);
+            pass.bindSampler("Lightmap", MinecraftClient.getInstance().gameRenderer.getLightmapTextureManager().getGlTextureView());
+
+            ScissorState scissorState = RenderSystem.getScissorStateForRenderTypeDraws();
+
+            if (scissorState.isEnabled()) {
+                pass.enableScissor(scissorState.getX(), scissorState.getY(), scissorState.getWidth(), scissorState.getHeight());
+            }
+            RenderSystem.bindDefaultUniforms(pass);
+            pass.setUniform("DynamicTransforms", bufferSlice);
+
+            if (this.indexBuffer == null) {
+                pass.setIndexBuffer(indexBuffer, shapeIndexBuffer.getIndexType());
+            } else {
+                pass.setIndexBuffer(this.indexBuffer, indexType);
+            }
+            pass.setVertexBuffer(0, vertexBuffer);
+            if (glTextureView != null){
+                pass.bindSampler("Sampler0", glTextureView);
             }
 
-            Framebuffer mainFb = MinecraftClient.getInstance().getFramebuffer();
-            GpuTextureView texture1;
-            GpuTextureView texture2;
-
-            texture1 = mainFb.getColorAttachmentView();
-            texture2 = mainFb.useDepthAttachment ? mainFb.getDepthAttachmentView() : null;
-
-            GpuBuffer indexBuffer = this.shapeIndex.getIndexBuffer(this.indexCount);
-
-            GpuBufferSlice gpuSlice = RenderSystem.getDynamicUniforms()
-                    .write(
-                            RenderSystem.getModelViewMatrix(),
-                            colorMod,
-                            modelOffset,
-                            texMatrix,
-                            line);
-
-            // Attach Frame buffers
-            try(RenderPass pass = device.createCommandEncoder()
-                    .createRenderPass(()->this.name, texture1, OptionalInt.empty(), texture2, OptionalDouble.empty()))
-            {
-                pass.setPipeline(this.pipeline);
-
-                ScissorState scissorState = RenderSystem.getScissorStateForRenderTypeDraws();
-                if (scissorState.isEnabled())
-                {
-                    pass.enableScissor(scissorState.getX(), scissorState.getY(), scissorState.getWidth(), scissorState.getHeight());
-                }
-
-                RenderSystem.bindDefaultUniforms(pass);
-                pass.setUniform("DynamicTransforms", gpuSlice);
-
-                if (this.indexBuffer == null)
-                {
-                    pass.setIndexBuffer(indexBuffer, this.shapeIndex.getIndexType());
-                }
-                else
-                {
-                    pass.setIndexBuffer(this.indexBuffer, this.indexType);
-                }
-
-                pass.setVertexBuffer(0, this.vertexBuffer);
-                pass.drawIndexed(0, 0, this.indexCount, 1);
-            } catch (Exception ignore){}
+            pass.drawIndexed(0, 0, this.indexCount, 1);
+            RenderSystem.lineWidth(RenderSystem.getShaderLineWidth());
         }
     }
 
     public void reset(){
-        if (this.vertexBuffer != null)
-        {
-            this.vertexBuffer.close();
-            this.vertexBuffer = null;
+        if(bufferAllocator != null){
+            bufferAllocator.close();
+            bufferAllocator = null;
         }
-
-        if (this.indexBuffer != null)
-        {
-            this.indexBuffer.close();
-            this.indexBuffer = null;
-        }
-
-        if (this.builder != null)
-        {
-            try
-            {
-                BuiltBuffer meshData = this.builder.endNullable();
-                if (meshData != null)
-                {
-                    meshData.close();
+        if(bufferBuilder != null){
+            try{
+                BuiltBuffer built = bufferBuilder.endNullable();
+                if(built != null){
+                    built.close();
                 }
-            }
-            catch (Exception ignored) { }
-            this.builder = null;
+            } catch(Exception ignored){}
+
+            bufferBuilder = null;
         }
-
-        if (this.alloc != null)
-        {
-            this.alloc.close();
-            this.alloc = null;
+        if(shapeIndexBuffer != null){
+            shapeIndexBuffer = null;
         }
-
-        this.builder = null;
-        this.shapeIndex = null;
-        this.indexType = null;
-        this.vertexBuffer = null;
-        this.indexBuffer = null;
-        this.indexCount = -1;
-        this.textureId = -1;
-    }
-
-    @Override
-    public void close() {
-        this.reset();
+        if(vertexBuffer != null){
+            vertexBuffer.close();
+            vertexBuffer = null;
+        }
+        if(indexBuffer != null){
+            indexBuffer.close();
+            indexBuffer = null;
+        }
     }
 }

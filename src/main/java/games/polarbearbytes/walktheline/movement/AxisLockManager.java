@@ -2,6 +2,7 @@ package games.polarbearbytes.walktheline.movement;
 
 import com.mojang.datafixers.util.Pair;
 import games.polarbearbytes.walktheline.config.ConfigManager;
+import games.polarbearbytes.walktheline.config.WalkTheLineConfig;
 import games.polarbearbytes.walktheline.network.SyncPacket;
 import games.polarbearbytes.walktheline.state.LockedAxisData;
 import games.polarbearbytes.walktheline.state.PlayerState;
@@ -10,11 +11,11 @@ import games.polarbearbytes.walktheline.util.Utils;
 import games.polarbearbytes.walktheline.world.StrongholdLocator;
 import net.fabricmc.fabric.api.entity.event.v1.ServerEntityWorldChangeEvents;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.minecraft.block.BlockState;
 import net.minecraft.entity.Entity;
-import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.network.packet.s2c.play.PositionFlag;
+import net.minecraft.registry.Registries;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -63,28 +64,6 @@ public class AxisLockManager {
             if(lockedAxisData == null) return;
             syncToClient(player,worldKey,lockedAxisData,worldsData.enabled());
         });
-
-        /*
-        Tick the handler player locked ot axis checking
-         */
-        ServerTickEvents.END_SERVER_TICK.register(server -> {
-            for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
-                AxisLockManager.handlePlayerTick(player);
-            }
-        });
-    }
-
-    /**
-     * Every playertick get locked axis data (if made) and check to make sure player stays within
-     *
-     * @param player The server entity representing the player
-     */
-    public static void handlePlayerTick(PlayerEntity player) {
-        if (player.isRemoved() || !player.isAlive() || player.getEntityWorld().isClient() || player.isSleeping()) return;
-        if(!PlayerState.get().getEnabled((ServerPlayerEntity) player)) return;
-        LockedAxisData lockedAxisData = PlayerState.get().getLockedAxisData((ServerPlayerEntity) player);
-        if(lockedAxisData == null) return;
-        checkDistanceFromLockedAxis((ServerPlayerEntity) player, lockedAxisData);
     }
 
     /**
@@ -93,7 +72,7 @@ public class AxisLockManager {
      * @param player The server entity representing the player
      * @param data The locked axis and coordinate data
      */
-    private static void checkDistanceFromLockedAxis(ServerPlayerEntity player, LockedAxisData data){
+    public static boolean checkDistanceFromLockedAxis(ServerPlayerEntity player, LockedAxisData data){
         double coordinate = Utils.getPlayerCoordAlongLockedAxis(player, data.axis());
         double distance = coordinate - data.coordinate();
         Entity entity;
@@ -107,10 +86,10 @@ public class AxisLockManager {
         } else {
             entity = player;
         }
-        if(entity == null) return;
+        if(entity == null) return true;
         if (Math.abs(distance) <= tolerance) {
             //We are within the bounds so no need to do anything
-            return;
+            return true;
         } else if(Math.abs(distance) >= teleportTolerance){
             //Past the teleport tolerance, so teleport entity back to the locked coordinate
             ServerWorld world = (ServerWorld) entity.getEntityWorld();
@@ -128,10 +107,11 @@ public class AxisLockManager {
                     entity.teleport(world, newPos.getX(), y, newPos.getZ(),EnumSet.noneOf(PositionFlag.class),player.getYaw(),player.getPitch(),false);
                 }
             }
-            return;
+            return false;
         }
         //Entity is outside the tolerated bounds so apply a small pushback to keep them within
         applyPushback(entity,data.axis(),distance);
+        return true;
     }
 
     /**
@@ -173,11 +153,17 @@ public class AxisLockManager {
         boolean isHeadAir = world.getBlockState(mutablePosition).isAir();
         boolean isFootAir = world.getBlockState(mutablePosition.move(Direction.DOWN)).isAir();
         boolean isBelowAir;
+        boolean isBelowBedrock;
 
         //scan from sky downwards
         while(mutablePosition.getY() >= bottom) {
-            isBelowAir = world.getBlockState(mutablePosition.move(Direction.DOWN)).isAir();
-            if (!isBelowAir && isFootAir && isHeadAir) {
+            BlockState state = world.getBlockState(mutablePosition.move(Direction.DOWN));
+            isBelowAir = state.isAir();
+
+            String name = Registries.BLOCK.getId(state.getBlock()).toString();
+            isBelowBedrock = name.equals("minecraft:bedrock");
+
+            if (!isBelowAir && isFootAir && isHeadAir && !isBelowBedrock) {
                 return mutablePosition.getY() + 1;
             }
             isHeadAir = isFootAir;
@@ -200,7 +186,6 @@ public class AxisLockManager {
     public static LockedAxisData determineDimensionLocks(ServerPlayerEntity player, RegistryKey<World> worldKey) {
         PlayerState state = PlayerState.get();
         MinecraftServer server = player.getEntityWorld().getServer();
-        if(server == null) return null;
         String saveName = server.getSaveProperties().getLevelName();
         Axis axis;
         double coordinate;
@@ -255,7 +240,8 @@ public class AxisLockManager {
      * @param enabled Boolean determine if the mod is enabled
      */
     public static void syncToClient(ServerPlayerEntity player, RegistryKey<World> worldKey, LockedAxisData data, Boolean enabled) {
-        SyncPacket packet = new SyncPacket(worldKey,data, enabled);
+        WalkTheLineConfig cfg = ConfigManager.getConfig();
+        SyncPacket packet = new SyncPacket(worldKey,data, cfg.coordinateTolerance, enabled);
         ServerPlayNetworking.send(player, packet);
     }
 }
