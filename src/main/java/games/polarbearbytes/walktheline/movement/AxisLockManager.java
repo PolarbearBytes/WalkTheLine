@@ -1,7 +1,6 @@
 package games.polarbearbytes.walktheline.movement;
 
 import com.mojang.datafixers.util.Pair;
-import games.polarbearbytes.walktheline.WalkTheLine;
 import games.polarbearbytes.walktheline.config.ConfigManager;
 import games.polarbearbytes.walktheline.config.WalkTheLineConfig;
 import games.polarbearbytes.walktheline.network.SyncPacket;
@@ -48,6 +47,7 @@ public class AxisLockManager {
         along with wither or not the mod is enabled
          */
         ServerEntityWorldChangeEvents.AFTER_PLAYER_CHANGE_WORLD.register((player, from, to) -> {
+            if(!PlayerState.get().getEnabled(player)) return;
             WorldsData worldsData = PlayerState.get().getWorldsData(player);
             LockedAxisData lockedAxisData = PlayerState.get().getLockedAxisData(player);
             syncToClient(player,to.getRegistryKey(),lockedAxisData,worldsData.enabled());
@@ -58,6 +58,7 @@ public class AxisLockManager {
         we return early if we haven't any locked data (e.g., when first creating / joining a game)
          */
         ServerPlayerEvents.JOIN.register(player -> {
+            if(!PlayerState.get().getEnabled(player)) return;
             WorldsData worldsData = PlayerState.get().getWorldsData(player);
             RegistryKey<World> worldKey = player.getEntityWorld().getRegistryKey();
             LockedAxisData lockedAxisData = worldsData.worldData().get(worldKey);
@@ -219,6 +220,7 @@ public class AxisLockManager {
                 ServerWorld nether = player.getEntityWorld().getServer().getWorld(World.NETHER);
                 if(nether == null) return null;
                 LockedAxisData data = state.getLockedAxisData(player,saveName, World.OVERWORLD);
+                if(data == null) return null;
                 axis = data.axis();
                 coordinate = Math.floor(player.getEntityPos().getComponentAlongAxis(axis)) + 0.5d;
             }
